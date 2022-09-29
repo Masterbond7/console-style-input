@@ -1,1 +1,1 @@
-g++ ./src/main.cpp -o ./bin/main -std=c++17
+g++ ./src/main.cpp -o ./bin/main -std=c++17 -lusb-1.0
