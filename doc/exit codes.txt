@@ -1,2 +1,5 @@
 Exit code 0: Program ran successfully
 Exit code 1: Failed to initialize libusb
+Exit code 2: Failed to enumerate usb devices
+Exit code 3: Could not find/connect to PS3 controller
+Exit code 4: Error claiming PS3 controller

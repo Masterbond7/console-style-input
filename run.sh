@@ -1,2 +1,2 @@
 ./bin/main $@
-echo -e "\nExit status: " $?
+echo "\nExit status: " $?
