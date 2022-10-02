@@ -1,9 +1,15 @@
 #include <iostream>
 #include <libusb-1.0/libusb.h>
 #include <unistd.h>
+#include <linux/uinput.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <string.h>
 
 #define HID_GET_REPORT 0x01
 #define HID_REPORT_TYPE_INPUT 0x01
+
+static void emit(int fd, int type, int code, int val);
 
 // Function to display the important buts from the PS3 HID report
 // in a human readable way
@@ -82,16 +88,46 @@ int main() {
         return 4;
     }
 
-    // Read PS3 controller HID report
+    // Prepare uinput device
+    struct uinput_setup usetup;
+    int uinput_fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
+    ioctl(uinput_fd, UI_SET_EVBIT, EV_KEY);
+    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_LEFT);
+    ioctl(uinput_fd, UI_SET_EVBIT, EV_REL);
+    ioctl(uinput_fd, UI_SET_RELBIT, REL_X);
+    ioctl(uinput_fd, UI_SET_RELBIT, REL_Y);
+
+    memset(&usetup, 0, sizeof(usetup));
+    usetup.id.bustype = BUS_USB;
+    usetup.id.vendor = 0x1234;
+    usetup.id.product = 0x5678;
+    strcpy(usetup.name, "PS3 Mouse");
+
+    ioctl(uinput_fd, UI_DEV_SETUP, &usetup);
+    ioctl(uinput_fd, UI_DEV_CREATE);
+    sleep(1);
+
     uint8_t hid_report[64];
-    std::cout << "Getting HID report" << std::endl;
+    std::cout << "Getting HID reports" << std::endl;
+    // Main loop
     for (int i = 0; i < 64*15; i++) {
+        // Read PS3 controller HID report
         libusb_control_transfer(device_handle, LIBUSB_ENDPOINT_IN|LIBUSB_REQUEST_TYPE_CLASS|LIBUSB_RECIPIENT_INTERFACE,
         HID_GET_REPORT, (HID_REPORT_TYPE_INPUT<<8)|0x01, 0, hid_report, sizeof(hid_report), 100);
         print_hid_report_ps3(hid_report);
         std::cout << std::endl;
+
+        emit(uinput_fd, EV_REL, REL_X, int((hid_report[6]-128)/8));
+        emit(uinput_fd, EV_REL, REL_Y, int((hid_report[7]-128)/8));
+        emit(uinput_fd, EV_SYN, SYN_REPORT, 0);
+
+        // Delay
         usleep(15625); // 1/64th of a second
     }
+
+    // Close uinput device
+    ioctl(uinput_fd, UI_DEV_DESTROY);
+    close(uinput_fd);
 
     // Close PS3 controller
     libusb_close(device_handle);
@@ -101,4 +137,18 @@ int main() {
 
     // Exit successfully
     return 0;
+}
+
+void emit(int fd, int type, int code, int val)
+{
+   struct input_event ie;
+
+   ie.type = type;
+   ie.code = code;
+   ie.value = val;
+   /* timestamp values below are ignored */
+   ie.time.tv_sec = 0;
+   ie.time.tv_usec = 0;
+
+   write(fd, &ie, sizeof(ie));
 }
