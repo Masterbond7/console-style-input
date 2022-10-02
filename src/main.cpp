@@ -5,6 +5,40 @@
 #define HID_GET_REPORT 0x01
 #define HID_REPORT_TYPE_INPUT 0x01
 
+// Function to display the important buts from the PS3 HID report
+// in a human readable way
+void print_hid_report_ps3(uint8_t *hid_report) {
+    // First set of bits (select, start, stick buttons, d-pad)
+    std::cout << "Select button: " << ((hid_report[2]&1)?" True":"False") << ", ";
+    std::cout << "Start button: " << (((hid_report[2]>>3)&1)?" True":"False") << ", ";
+    std::cout << "L-stick press: " << (((hid_report[2]>>1)&1)?" True":"False") << ", ";
+    std::cout << "R-stick press: " << (((hid_report[2]>>2)&1)?" True":"False") << ", ";
+    std::cout << "D-Pad up: " << (((hid_report[2]>>4)&1)?" True":"False") << ", ";
+    std::cout << "D-Pad right: " << (((hid_report[2]>>5)&1)?" True":"False") << ", ";
+    std::cout << "D-Pad down: " << (((hid_report[2]>>6)&1)?" True":"False") << ", ";
+    std::cout << "D-Pad left: " << (((hid_report[2]>>7)&1)?" True":"False") << std::endl;
+
+    // Second set of bits (triggers, bumpers, and right buttons)
+    std::cout << "Left trigger: " << ((hid_report[3]&1)?" True":"False") << ", ";
+    std::cout << "Left bumper: " << (((hid_report[3]>>2&1)?" True":"False")) << ", ";
+    std::cout << "Right trigger: " << (((hid_report[3]>>1&1)?" True":"False")) << ", ";
+    std::cout << "Right bumper: " << (((hid_report[3]>>3&1)?" True":"False")) << ", ";
+    std::cout << "Triangle: " << (((hid_report[3]>>4&1)?" True":"False")) << ", ";
+    std::cout << "Circle: " << (((hid_report[3]>>5&1)?" True":"False")) << ", ";
+    std::cout << "Cross: " << (((hid_report[3]>>6&1)?" True":"False")) << ", ";
+    std::cout << "Square: " << (((hid_report[3]>>7&1)?" True":"False")) << std::endl;
+
+    // PS button & Sticks (L&R, x&y)
+    std::cout << "PS button: " << ((hid_report[4]&1)?" True":"False") << ", ";
+    std::cout << "Left stick: " << int(hid_report[6]) << " (x), " << int(hid_report[7]) << "(y); ";
+    std::cout << "Right stick: " << int(hid_report[8]) << " (x), " << int(hid_report[9]) << "(y)" << std::endl;
+
+
+    // New line
+    std::cout << std::endl;
+}
+
+// Main function
 int main() {
     // Initialize libusb
     libusb_context *usb_context;
@@ -51,13 +85,11 @@ int main() {
     // Read PS3 controller HID report
     uint8_t hid_report[64];
     std::cout << "Getting HID report" << std::endl;
-    for (int i = 0; i < 1000; i++) {
+    for (int i = 0; i < 300; i++) {
         libusb_control_transfer(device_handle, LIBUSB_ENDPOINT_IN|LIBUSB_REQUEST_TYPE_CLASS|LIBUSB_RECIPIENT_INTERFACE,
         HID_GET_REPORT, (HID_REPORT_TYPE_INPUT<<8)|0x01, 0, hid_report, sizeof(hid_report), 100);
-        for (int i = 0; i < sizeof(hid_report); i++) {
-            std::cout << int(hid_report[i]) << ",";
-        }
-        std::cout << std::endl << std::endl;
+        print_hid_report_ps3(hid_report);
+        std::cout << std::endl;
         usleep(100000);
     }
 

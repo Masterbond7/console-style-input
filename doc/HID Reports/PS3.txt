@@ -1,0 +1,23 @@
+  0-1 | ???
+    2 | 1=Select, 2=L-Stick press, 4=R-Stick press, 8=Start, 16=D-Pad up, 32=D-Pad right, 64=D-Pad down, 128=D-Pad left
+    3 | 1=L-Trigger, 2=R-Trigger, 4=L-Bumper, 8=R-Bumper, 16=Triangle, 32=Circle, 64=Cross, 128=Square
+    4 | 1=PS button
+    5 | ???
+    6 | L-Stick X (0=Left, 255=Right)
+    7 | L-Stick Y (0=Up, 255=Down)
+    8 | R-Stick X (0=Left, 255=Right)
+    9 | R-Stick Y (0=Up, 255=Down)
+10-13 | ???
+   14 | D-Pad up pressure
+   15 | D-Pad right pressure
+   16 | D-Pad down pressure
+   17 | D-Pad left pressure
+   18 | L-Trigger pressure
+   19 | R-Trigger pressure
+   20 | L-Bumper pressure
+   21 | R-Bumper pressure
+   22 | Triangle pressure
+   23 | Circle pressure
+   24 | Cross pressure
+   25 | Square pressure
+  26+ | Accelerometer + other stuff ???
