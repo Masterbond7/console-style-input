@@ -119,6 +119,7 @@ int main() {
 
         emit(uinput_fd, EV_REL, REL_X, int((hid_report[6]-128)/8));
         emit(uinput_fd, EV_REL, REL_Y, int((hid_report[7]-128)/8));
+        emit(uinput_fd, EV_KEY, BTN_LEFT, int(hid_report[3]>>6&1));
         emit(uinput_fd, EV_SYN, SYN_REPORT, 0);
 
         // Delay
