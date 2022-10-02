@@ -1,30 +1,13 @@
 #include <iostream>
-#include <signal.h>
 #include <libusb-1.0/libusb.h>
 #include <unistd.h>
 
 #define HID_GET_REPORT 0x01
 #define HID_REPORT_TYPE_INPUT 0x01
 
-// Global variables
-libusb_context *usb_context;
-libusb_device_handle *device_handle;
-
-void catch_interrupt(int sig) {
-    // Close PS3 controller
-    libusb_close(device_handle);
-
-    // Deinitialize libusb
-    libusb_exit(usb_context);
-
-    exit(0);
-}
-
 int main() {
-    // Set Ctrl-C interrupt
-    signal(SIGINT, catch_interrupt);
-
     // Initialize libusb
+    libusb_context *usb_context;
     int result = libusb_init(&usb_context);
     if (result != 0) {
         std::cout << "Error initializing libusb: " << libusb_error_name(result) << std::endl;
@@ -46,6 +29,7 @@ int main() {
     }
 
     // Connect PS3 controller
+    libusb_device_handle *device_handle;
     device_handle = libusb_open_device_with_vid_pid(usb_context, 0x054c, 0x0268);
     libusb_device *usb_device = libusb_get_device(device_handle); // TODO: Handle potential errors
     if (&device_handle == NULL) {
