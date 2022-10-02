@@ -85,12 +85,12 @@ int main() {
     // Read PS3 controller HID report
     uint8_t hid_report[64];
     std::cout << "Getting HID report" << std::endl;
-    for (int i = 0; i < 300; i++) {
+    for (int i = 0; i < 64*15; i++) {
         libusb_control_transfer(device_handle, LIBUSB_ENDPOINT_IN|LIBUSB_REQUEST_TYPE_CLASS|LIBUSB_RECIPIENT_INTERFACE,
         HID_GET_REPORT, (HID_REPORT_TYPE_INPUT<<8)|0x01, 0, hid_report, sizeof(hid_report), 100);
         print_hid_report_ps3(hid_report);
         std::cout << std::endl;
-        usleep(100000);
+        usleep(15625); // 1/64th of a second
     }
 
     // Close PS3 controller
