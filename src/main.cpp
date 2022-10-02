@@ -93,6 +93,7 @@ int main() {
     int uinput_fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
     ioctl(uinput_fd, UI_SET_EVBIT, EV_KEY);
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_LEFT);
+    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_RIGHT);
     ioctl(uinput_fd, UI_SET_EVBIT, EV_REL);
     ioctl(uinput_fd, UI_SET_RELBIT, REL_X);
     ioctl(uinput_fd, UI_SET_RELBIT, REL_Y);
@@ -120,6 +121,7 @@ int main() {
         emit(uinput_fd, EV_REL, REL_X, int((hid_report[6]-128)/8));
         emit(uinput_fd, EV_REL, REL_Y, int((hid_report[7]-128)/8));
         emit(uinput_fd, EV_KEY, BTN_LEFT, int(hid_report[3]>>6&1));
+        emit(uinput_fd, EV_KEY, BTN_RIGHT, int(hid_report[3]>>5&1));
         emit(uinput_fd, EV_SYN, SYN_REPORT, 0);
 
         // Delay
