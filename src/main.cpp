@@ -10,39 +10,10 @@
 #define HID_REPORT_TYPE_INPUT 0x01
 
 static void emit(int fd, int type, int code, int val);
+void print_hid_report_ps3(uint8_t *hid_report);
 
-// Function to display the important buts from the PS3 HID report
-// in a human readable way
-void print_hid_report_ps3(uint8_t *hid_report) {
-    // First set of bits (select, start, stick buttons, d-pad)
-    std::cout << "Select button: " << ((hid_report[2]&1)?" True":"False") << ", ";
-    std::cout << "Start button: " << (((hid_report[2]>>3)&1)?" True":"False") << ", ";
-    std::cout << "L-stick press: " << (((hid_report[2]>>1)&1)?" True":"False") << ", ";
-    std::cout << "R-stick press: " << (((hid_report[2]>>2)&1)?" True":"False") << ", ";
-    std::cout << "D-Pad up: " << (((hid_report[2]>>4)&1)?" True":"False") << ", ";
-    std::cout << "D-Pad right: " << (((hid_report[2]>>5)&1)?" True":"False") << ", ";
-    std::cout << "D-Pad down: " << (((hid_report[2]>>6)&1)?" True":"False") << ", ";
-    std::cout << "D-Pad left: " << (((hid_report[2]>>7)&1)?" True":"False") << std::endl;
-
-    // Second set of bits (triggers, bumpers, and right buttons)
-    std::cout << "Left trigger: " << ((hid_report[3]&1)?" True":"False") << ", ";
-    std::cout << "Left bumper: " << (((hid_report[3]>>2&1)?" True":"False")) << ", ";
-    std::cout << "Right trigger: " << (((hid_report[3]>>1&1)?" True":"False")) << ", ";
-    std::cout << "Right bumper: " << (((hid_report[3]>>3&1)?" True":"False")) << ", ";
-    std::cout << "Triangle: " << (((hid_report[3]>>4&1)?" True":"False")) << ", ";
-    std::cout << "Circle: " << (((hid_report[3]>>5&1)?" True":"False")) << ", ";
-    std::cout << "Cross: " << (((hid_report[3]>>6&1)?" True":"False")) << ", ";
-    std::cout << "Square: " << (((hid_report[3]>>7&1)?" True":"False")) << std::endl;
-
-    // PS button & Sticks (L&R, x&y)
-    std::cout << "PS button: " << ((hid_report[4]&1)?" True":"False") << ", ";
-    std::cout << "Left stick: " << int(hid_report[6]) << " (x), " << int(hid_report[7]) << "(y); ";
-    std::cout << "Right stick: " << int(hid_report[8]) << " (x), " << int(hid_report[9]) << "(y)" << std::endl;
-
-
-    // New line
-    std::cout << std::endl;
-}
+// Global variables
+bool running = true;
 
 // Main function
 int main() {
@@ -94,10 +65,10 @@ int main() {
     ioctl(uinput_fd, UI_SET_EVBIT, EV_KEY);
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_LEFT);
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_RIGHT);
-    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_MIDDLE);
     ioctl(uinput_fd, UI_SET_EVBIT, EV_REL);
     ioctl(uinput_fd, UI_SET_RELBIT, REL_X);
     ioctl(uinput_fd, UI_SET_RELBIT, REL_Y);
+    ioctl(uinput_fd, UI_SET_RELBIT, REL_WHEEL);
 
     memset(&usetup, 0, sizeof(usetup));
     usetup.id.bustype = BUS_USB;
@@ -112,19 +83,33 @@ int main() {
     uint8_t hid_report[64];
     std::cout << "Getting HID reports" << std::endl;
     // Main loop
-    for (int i = 0; i < 64*15; i++) {
+    bool scrolled = false;
+    while (running) {
         // Read PS3 controller HID report
         libusb_control_transfer(device_handle, LIBUSB_ENDPOINT_IN|LIBUSB_REQUEST_TYPE_CLASS|LIBUSB_RECIPIENT_INTERFACE,
         HID_GET_REPORT, (HID_REPORT_TYPE_INPUT<<8)|0x01, 0, hid_report, sizeof(hid_report), 100);
         print_hid_report_ps3(hid_report);
         std::cout << std::endl;
 
+        // Send mouse input from controller to uinput
         emit(uinput_fd, EV_REL, REL_X, int((hid_report[6]-128)/8));
         emit(uinput_fd, EV_REL, REL_Y, int((hid_report[7]-128)/8));
-        emit(uinput_fd, EV_KEY, BTN_LEFT, int(hid_report[3]>>6&1));
-        emit(uinput_fd, EV_KEY, BTN_RIGHT, int(hid_report[3]>>5&1));
-        emit(uinput_fd, EV_KEY, BTN_MIDDLE, int(hid_report[3]>>7&1));
+        emit(uinput_fd, EV_KEY, BTN_LEFT, int((hid_report[3]>>6)&1));
+        emit(uinput_fd, EV_KEY, BTN_RIGHT, int((hid_report[3]>>5)&1));
+
+        // Scroll wheel logic
+        if (!scrolled) {
+            emit(uinput_fd, EV_REL, REL_WHEEL, int((hid_report[3]>>4)&1));
+            emit(uinput_fd, EV_REL, REL_WHEEL, -int((hid_report[3]>>7)&1));
+        }
+        if (int((hid_report[3]>>4)&1) || int((hid_report[3]>>7)&1)) { scrolled = true; } 
+        else { scrolled = false; }
+
+        // Send movement
         emit(uinput_fd, EV_SYN, SYN_REPORT, 0);
+
+        // Quit program if PS3 button is pressed
+        (int(hid_report[4])&1)?running=false:running=true;
 
         // Delay
         usleep(15625); // 1/64th of a second
@@ -144,6 +129,7 @@ int main() {
     return 0;
 }
 
+// Function to send input codes to the uinput file descriptor
 void emit(int fd, int type, int code, int val)
 {
    struct input_event ie;
@@ -156,4 +142,37 @@ void emit(int fd, int type, int code, int val)
    ie.time.tv_usec = 0;
 
    write(fd, &ie, sizeof(ie));
+}
+
+// Function to display the important buts from the PS3 HID report
+// in a human readable way
+void print_hid_report_ps3(uint8_t *hid_report) {
+    // First set of bits (select, start, stick buttons, d-pad)
+    std::cout << "Select button: " << ((hid_report[2]&1)?" True":"False") << ", ";
+    std::cout << "Start button: " << (((hid_report[2]>>3)&1)?" True":"False") << ", ";
+    std::cout << "L-stick press: " << (((hid_report[2]>>1)&1)?" True":"False") << ", ";
+    std::cout << "R-stick press: " << (((hid_report[2]>>2)&1)?" True":"False") << ", ";
+    std::cout << "D-Pad up: " << (((hid_report[2]>>4)&1)?" True":"False") << ", ";
+    std::cout << "D-Pad right: " << (((hid_report[2]>>5)&1)?" True":"False") << ", ";
+    std::cout << "D-Pad down: " << (((hid_report[2]>>6)&1)?" True":"False") << ", ";
+    std::cout << "D-Pad left: " << (((hid_report[2]>>7)&1)?" True":"False") << std::endl;
+
+    // Second set of bits (triggers, bumpers, and right buttons)
+    std::cout << "Left trigger: " << ((hid_report[3]&1)?" True":"False") << ", ";
+    std::cout << "Left bumper: " << (((hid_report[3]>>2&1)?" True":"False")) << ", ";
+    std::cout << "Right trigger: " << (((hid_report[3]>>1&1)?" True":"False")) << ", ";
+    std::cout << "Right bumper: " << (((hid_report[3]>>3&1)?" True":"False")) << ", ";
+    std::cout << "Triangle: " << (((hid_report[3]>>4&1)?" True":"False")) << ", ";
+    std::cout << "Circle: " << (((hid_report[3]>>5&1)?" True":"False")) << ", ";
+    std::cout << "Cross: " << (((hid_report[3]>>6&1)?" True":"False")) << ", ";
+    std::cout << "Square: " << (((hid_report[3]>>7&1)?" True":"False")) << std::endl;
+
+    // PS button & Sticks (L&R, x&y)
+    std::cout << "PS button: " << ((hid_report[4]&1)?" True":"False") << ", ";
+    std::cout << "Left stick: " << int(hid_report[6]) << " (x), " << int(hid_report[7]) << "(y); ";
+    std::cout << "Right stick: " << int(hid_report[8]) << " (x), " << int(hid_report[9]) << "(y)" << std::endl;
+
+
+    // New line
+    std::cout << std::endl;
 }
